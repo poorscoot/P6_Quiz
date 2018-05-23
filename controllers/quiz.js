@@ -225,3 +225,54 @@ exports.check = (req, res, next) => {
         answer
     });
 };
+
+exports.randomPlay = (req, res, next) => {
+    //req.session.correct=[];
+    req.session.correct=req.session.correct || [];
+
+    models.quiz.findAll({where: {id:{[Sequelize.Op.notIn]: req.session.correct}}})
+    .then(quizzes => {
+        let quiz=quizzes[Math.floor(Math.random() * quizzes.length)];
+        let score = req.session.correct.length;
+        if (quizzes.length===0){
+            req.session.correct=[];
+            res.render('quizzes/random_nomore', {score});
+            return;
+        };
+        res.render('quizzes/random_play',{score, quiz});
+    })
+    .catch(Sequelize.ValidationError, error => {
+        req.flash('error', 'There are errors in the form:');
+        error.errors.forEach(({message}) => req.flash('error', message));
+        res.render('quizzes/random_play', {score, quiz});
+    })
+    .catch(error => {
+        req.flash('error', 'Error playing the quiz: ' + error.message);
+        next(error);
+    });
+    
+};
+
+exports.randomCheck = (req, res, next) => {
+   
+    const {quiz, query} = req;
+
+    const answer = query.answer || "";
+    const result = (answer.toLowerCase().trim() === quiz.answer.toLowerCase().trim());
+
+    let score;
+    if(result){
+        req.session.correct.push(quiz.id);
+        score=req.session.correct.length;
+    } else {
+        score=req.session.correct.length;
+        req.session.correct=[];
+    };
+
+    res.render('quizzes/random_result', {
+        score,
+        result,
+        answer
+    });
+    
+};
